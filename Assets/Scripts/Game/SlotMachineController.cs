@@ -30,6 +30,13 @@ namespace LuckySeven.Slot
         public bool IsSpinning { get; private set; }
         public SpinResult LastResult { get; private set; }
 
+        // Session statistics - also surfaced in the UI as a creative extra.
+        public int SpinsPlayed { get; private set; }
+        public int TotalWagered { get; private set; }
+        public int TotalWon { get; private set; }
+        public int BiggestWin { get; private set; }
+        public int JackpotsWon { get; private set; }
+
         public int CurrentBet
         {
             get
@@ -62,6 +69,11 @@ namespace LuckySeven.Slot
             BetIndex = 0;
             FreeSpins = 0;
             IsSpinning = false;
+            SpinsPlayed = 0;
+            TotalWagered = 0;
+            TotalWon = 0;
+            BiggestWin = 0;
+            JackpotsWon = 0;
         }
 
         /// <summary>Attaches the three animated reels built by the view.</summary>
@@ -113,6 +125,9 @@ namespace LuckySeven.Slot
             // Pay the wager, then feed the progressive jackpot with a slice of it.
             if (!usesFreeSpin) Credits -= bet;
             else FreeSpins--;
+
+            SpinsPlayed++;
+            if (!usesFreeSpin) TotalWagered += bet;
 
             jackpotBefore = Jackpot;
             if (!usesFreeSpin)
@@ -186,8 +201,17 @@ namespace LuckySeven.Slot
                              pendingPayline[2] == SymbolType.LuckySeven &&
                              pendingPayout > 0;
 
-            if (pendingPayout > 0) Credits += pendingPayout;
-            if (isJackpot) Jackpot = settings.StartingJackpot; // progressive pot resets
+            if (pendingPayout > 0)
+            {
+                Credits += pendingPayout;
+                TotalWon += pendingPayout;
+                if (pendingPayout > BiggestWin) BiggestWin = pendingPayout;
+            }
+            if (isJackpot)
+            {
+                Jackpot = settings.StartingJackpot; // progressive pot resets
+                JackpotsWon++;
+            }
             FreeSpins += pendingFreeSpins;
 
             int jackpotAfter = Jackpot;

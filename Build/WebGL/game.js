@@ -35,6 +35,13 @@
   var spinElapsed = 0;
   var messageTimer = 0;
 
+  // Extra features: auto-spin, sound mute and persistent statistics.
+  var autoSpinEnabled = false;
+  var autoTimer = -1;
+  var muted = false;
+  var stats = { spins: 0, wagered: 0, won: 0, jackpots: 0 };
+  var bestWin = 0;
+
   var pendingPayline = null;
   var pendingBet = 0;
   var pendingPayout = 0;
@@ -84,6 +91,7 @@
   // ---------------------------------------------------------------- audio
   var audioContext = null;
   function beep(frequency, duration, volume, slideTo) {
+    if (muted) return;
     try {
       if (!audioContext) audioContext = new (window.AudioContext || window.webkitAudioContext)();
       var osc = audioContext.createOscillator();
@@ -199,7 +207,40 @@
     $("betBtn").className = "ui arrow " + (spinning ? "bet-off" : "bet-normal");
   }
 
+  function updateStats() {
+    $("stats").textContent =
+      "SESSION STATS\n\n" +
+      "SPINS      " + stats.spins + "\n" +
+      "WAGERED    " + stats.wagered + "\n" +
+      "WON        " + stats.won + "\n" +
+      "BEST WIN   " + bestWin + "\n" +
+      "JACKPOTS   " + stats.jackpots;
+  }
+
+  function toggleAuto() {
+    autoSpinEnabled = !autoSpinEnabled;
+    autoTimer = autoSpinEnabled && !spinning && (freeSpins > 0 || credits >= currentBet()) ? 0.35 : -1;
+    var button = $("autoBtn");
+    button.textContent = "AUTO: " + (autoSpinEnabled ? "ON" : "OFF");
+    button.classList.toggle("active", autoSpinEnabled);
+    $("popupDim").style.display = "none";
+    beep(520, 0.06, 0.12);
+  }
+
+  function toggleSound() {
+    muted = !muted;
+    $("soundBtn").textContent = "SOUND: " + (muted ? "OFF" : "ON");
+    if (!muted) beep(520, 0.06, 0.12);
+  }
+
+  function toggleHelp() {
+    var help = $("helpDim");
+    help.style.display = help.style.display === "block" ? "none" : "block";
+    beep(520, 0.06, 0.12);
+  }
+
   function cycleBet() {
+    if ($("helpDim").style.display === "block") return;
     if (spinning) { showMessage("Wait for the reels to stop first."); return; }
     betIndex = (betIndex + 1) % BETS.length;
     beep(520, 0.06, 0.12);
@@ -219,7 +260,7 @@
   }
 
   function spin() {
-    if ($("popupDim").style.display === "block") return;
+    if ($("popupDim").style.display === "block" || $("helpDim").style.display === "block") return;
     if (spinning) { showMessage("The reels are still spinning!"); return; }
 
     var usesFree = freeSpins > 0;
@@ -227,6 +268,8 @@
     if (!usesFree && credits < bet) { showMessage("Not enough credits - lower your bet."); return; }
 
     if (!usesFree) credits -= bet; else freeSpins--;
+    stats.spins++;
+    if (!usesFree) stats.wagered += bet;
     jackpotBefore = jackpot;
     if (!usesFree) jackpot += Math.round(bet * GROWTH);
 
@@ -250,12 +293,31 @@
 
   function finishSpin() {
     var isJackpot = pendingPayline[0] === 0 && pendingPayline[1] === 0 && pendingPayline[2] === 0 && pendingPayout > 0;
-    if (pendingPayout > 0) credits += pendingPayout;
-    if (isJackpot) jackpot = START_JACKPOT;
+    if (pendingPayout > 0) {
+      credits += pendingPayout;
+      stats.won += pendingPayout;
+      if (pendingPayout > bestWin) {
+        bestWin = pendingPayout;
+        try { localStorage.setItem("lucky7.bestWin", String(bestWin)); } catch (e) { /* storage optional */ }
+      }
+    }
+    if (isJackpot) { jackpot = START_JACKPOT; stats.jackpots++; }
     freeSpins += pendingFreeSpins;
 
     $("winInfo").textContent = "WIN " + pendingPayout;
     spinning = false;
+    updateStats();
+
+    // Celebrate by pulsing the three payline symbols.
+    if (pendingPayout > 0) {
+      reels.forEach(function (reel) {
+        var symbol = reel.symbols[1];
+        symbol.classList.remove("win-glow");
+        void symbol.offsetWidth; // force reflow so the animation restarts
+        symbol.classList.add("win-glow");
+        setTimeout(function () { symbol.classList.remove("win-glow"); }, 950);
+      });
+    }
 
     var title = isJackpot ? "JACKPOT!!!" : (pendingPayout > 0 ? "YOU WIN!" : "TRY AGAIN");
     var body;
@@ -271,12 +333,17 @@
     $("popupBody").style.whiteSpace = "pre-line";
     $("status").textContent = body;
     $("status").style.opacity = 1;
-    $("popupDim").style.display = "block";
 
     if (isJackpot) arpeggio([523, 659, 784, 1047, 1319], 110);
     else if (pendingPayout > 0) arpeggio([523, 659, 784], 110);
     if (pendingFreeSpins > 0) setTimeout(function () { arpeggio([880, 1175], 120); }, 500);
 
+    // Auto-play skips the popup so spins can run back-to-back.
+    if (autoSpinEnabled) {
+      autoTimer = 0.55;
+    } else {
+      $("popupDim").style.display = "block";
+    }
     updateUI();
   }
 
@@ -285,6 +352,22 @@
   function frame(now) {
     var dt = lastTime ? Math.min((now - lastTime) / 1000, 0.05) : 0;
     lastTime = now;
+
+    // Auto-play schedules the next spin shortly after the previous one ends.
+    if (autoTimer > 0) {
+      autoTimer -= dt;
+      if (autoTimer <= 0) {
+        autoTimer = -1;
+        if (!spinning && (freeSpins > 0 || credits >= currentBet())) {
+          spin();
+        } else {
+          autoSpinEnabled = false;
+          $("autoBtn").textContent = "AUTO: OFF";
+          $("autoBtn").classList.remove("active");
+          showMessage("Auto-spin stopped - not enough credits.");
+        }
+      }
+    }
 
     if (spinning) {
       spinElapsed += dt;
@@ -322,8 +405,16 @@
     buildReels();
     reels.forEach(renderReel);
     $("popupDim").style.display = "none";
+    $("helpDim").style.display = "none";
+    try { bestWin = parseInt(localStorage.getItem("lucky7.bestWin") || "0", 10) || 0; } catch (e) { /* optional */ }
+    updateStats();
+
     $("spinBtn").addEventListener("click", spin);
     $("betBtn").addEventListener("click", cycleBet);
+    $("autoBtn").addEventListener("click", toggleAuto);
+    $("soundBtn").addEventListener("click", toggleSound);
+    $("helpBtn").addEventListener("click", toggleHelp);
+    $("closeHelpBtn").addEventListener("click", function () { $("helpDim").style.display = "none"; });
     $("yesBtn").addEventListener("click", function () {
       $("popupDim").style.display = "none";
       if (!spinning && (freeSpins > 0 || credits >= currentBet())) spin();
@@ -332,7 +423,14 @@
     document.addEventListener("keydown", function (event) {
       if (event.code === "Space") { event.preventDefault(); spin(); }
       else if (event.key === "b" || event.key === "B") cycleBet();
-      else if (event.key === "Escape") $("popupDim").style.display = "none";
+      else if (event.key === "a" || event.key === "A") toggleAuto();
+      else if (event.key === "m" || event.key === "M") toggleSound();
+      else if (event.key === "h" || event.key === "H") toggleHelp();
+      else if (event.key === "Escape")
+      {
+        if ($("helpDim").style.display === "block") $("helpDim").style.display = "none";
+        else $("popupDim").style.display = "none";
+      }
     });
     window.addEventListener("resize", fitStage);
     fitStage();

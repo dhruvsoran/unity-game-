@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -57,6 +58,16 @@ namespace LuckySeven.Slot
         private float leverTimer = -1f;
         private float messageTimer;
 
+        // Extra features: auto-spin, stats, best-win persistence, paytable and mute.
+        private bool autoSpinEnabled;
+        private float autoSpinTimer = -1f;
+        private bool soundMuted;
+        private Text statsText;
+        private Text autoButtonLabel;
+        private Text soundButtonLabel;
+        private Button autoButton;
+        private GameObject helpRoot;
+
         /// <summary>Entry point called by the bootstrap component.</summary>
         public void Initialize()
         {
@@ -86,7 +97,9 @@ namespace LuckySeven.Slot
             BuildLever(canvasRoot);
             BuildInfoPanel(canvasRoot);
             BuildControls(canvasRoot);
+            BuildSidePanel(canvasRoot);
             BuildPopup(canvasRoot);
+            BuildHelpPanel(canvasRoot);
 
             audioManager = new AudioManager();
             audioManager.Initialize(gameObject);
@@ -104,6 +117,7 @@ namespace LuckySeven.Slot
             betButton.onClick.AddListener(OnBetClicked);
 
             RefreshState();
+            RefreshStats();
         }
 
         private void Update()
@@ -115,7 +129,14 @@ namespace LuckySeven.Slot
 
             if (Input.GetKeyDown(KeyCode.Space)) OnSpinClicked();
             if (Input.GetKeyDown(KeyCode.B)) OnBetClicked();
-            if (Input.GetKeyDown(KeyCode.Escape) && popupRoot != null) popupRoot.SetActive(false);
+            if (Input.GetKeyDown(KeyCode.A)) ToggleAutoSpin();
+            if (Input.GetKeyDown(KeyCode.M)) ToggleSound();
+            if (Input.GetKeyDown(KeyCode.H)) ToggleHelp();
+            if (Input.GetKeyDown(KeyCode.Escape))
+            {
+                if (helpRoot != null) helpRoot.SetActive(false);
+                else if (popupRoot != null) popupRoot.SetActive(false);
+            }
         }
 
         // ---------------------------------------------------------------- UI build
@@ -259,8 +280,61 @@ namespace LuckySeven.Slot
             Text betLabel = CreateText("BetLabel", parent, "BET", 26, Color.white, new Vector2(260f, 44f), new Vector2(725f, 5f), TextAnchor.MiddleCenter);
             betLabel.fontStyle = FontStyle.Bold;
 
-            Text shortcut = CreateText("Shortcut", parent, "SPACE = SPIN    B = BET", 20, new Color(0.75f, 0.78f, 0.95f), new Vector2(500f, 40f), new Vector2(720f, -300f), TextAnchor.MiddleCenter);
+            Text shortcut = CreateText("Shortcut", parent, "SPACE = SPIN   B = BET   A = AUTO   M = SOUND", 18, new Color(0.75f, 0.78f, 0.95f), new Vector2(560f, 40f), new Vector2(720f, -300f), TextAnchor.MiddleCenter);
             shortcut.color = new Color(0.75f, 0.78f, 0.95f, 0.8f);
+        }
+
+        /// <summary>Left-hand control column: statistics, auto-spin, sound and help.</summary>
+        private void BuildSidePanel(Transform parent)
+        {
+            Image panel = CreateImage("StatsPanel", parent, null, new Vector2(320f, 360f), new Vector2(-790f, -60f));
+            panel.color = new Color(0.04f, 0.03f, 0.16f, 0.72f);
+            panel.raycastTarget = false;
+
+            statsText = CreateText("Stats", parent, "", 24, new Color(0.75f, 0.86f, 1f), new Vector2(300f, 320f), new Vector2(-790f, -60f), TextAnchor.UpperLeft);
+            statsText.horizontalOverflow = HorizontalWrapMode.Wrap;
+
+            autoButton = CreateLabeledButton("AutoButton", parent, "AUTO: OFF", new Vector2(300f, 70f), new Vector2(-790f, 390f));
+            autoButton.onClick.AddListener(ToggleAutoSpin);
+            autoButtonLabel = autoButton.GetComponentInChildren<Text>();
+
+            Button soundButton = CreateLabeledButton("SoundButton", parent, "SOUND: ON", new Vector2(300f, 70f), new Vector2(-790f, 300f));
+            soundButton.onClick.AddListener(ToggleSound);
+            soundButtonLabel = soundButton.GetComponentInChildren<Text>();
+
+            Button helpButton = CreateLabeledButton("HelpButton", parent, "PAYTABLE (H)", new Vector2(300f, 70f), new Vector2(-790f, 210f));
+            helpButton.onClick.AddListener(ToggleHelp);
+        }
+
+        private void BuildHelpPanel(Transform parent)
+        {
+            helpRoot = new GameObject("HelpPanel", typeof(RectTransform));
+            helpRoot.transform.SetParent(parent, false);
+
+            Image dimmer = CreateImage("Dimmer", helpRoot.transform, null, Vector2.zero, Vector2.zero, false);
+            dimmer.color = new Color(0f, 0f, 0f, 0.72f);
+            Stretch(dimmer.rectTransform);
+
+            Image panel = CreateImage("Panel", helpRoot.transform, GetSprite("popup"), new Vector2(1000f, 620f), Vector2.zero);
+            panel.preserveAspect = true;
+
+            Text title = CreateText("Title", helpRoot.transform, "HOW TO PLAY / PAYTABLE", 44, new Color(1f, 0.88f, 0.42f), new Vector2(900f, 70f), new Vector2(0f, 220f), TextAnchor.MiddleCenter);
+            title.fontStyle = FontStyle.Bold;
+
+            string rules =
+                "CENTRE ROW IS THE PAYLINE\n\n" +
+                "7 - 7 - 7 ........ PROGRESSIVE JACKPOT\n" +
+                "BELL x3 .......... 20x BET + 2 FREE SPINS\n" +
+                "BAR x3 ........... 10x BET\n" +
+                "CHERRY x3 ........ 5x BET\n" +
+                "TWO CHERRIES ..... 2x BET\n\n" +
+                "BETS: 10 / 50 / 100     START: 1000 CREDITS\n" +
+                "SPACE SPIN   B BET   A AUTO   M SOUND   H HELP";
+            CreateText("Rules", helpRoot.transform, rules, 26, Color.white, new Vector2(900f, 360f), new Vector2(0f, 20f), TextAnchor.MiddleCenter);
+
+            Button closeButton = CreateLabeledButton("CloseButton", helpRoot.transform, "CLOSE (ESC)", new Vector2(300f, 80f), new Vector2(0f, -230f));
+            closeButton.onClick.AddListener(delegate { helpRoot.SetActive(false); });
+            helpRoot.SetActive(false);
         }
 
         private void BuildPopup(Transform parent)
@@ -296,6 +370,7 @@ namespace LuckySeven.Slot
         private void OnSpinClicked()
         {
             if (popupRoot != null && popupRoot.activeSelf) return;
+            if (helpRoot != null && helpRoot.activeSelf) return;
             audioManager.Play(SoundCue.Button);
             controller.Spin();
         }
@@ -303,6 +378,7 @@ namespace LuckySeven.Slot
         private void OnBetClicked()
         {
             if (popupRoot != null && popupRoot.activeSelf) return;
+            if (helpRoot != null && helpRoot.activeSelf) return;
             audioManager.Play(SoundCue.Button);
             controller.CycleBet();
         }
@@ -326,31 +402,111 @@ namespace LuckySeven.Slot
         private void OnSpinCompleted(SpinResult result)
         {
             RefreshState();
+            RefreshStats();
             winText.text = "WIN  " + result.Payout;
             statusText.text = result.Describe();
             statusText.color = new Color(1f, 0.95f, 0.8f, 1f);
             messageTimer = 2.2f;
 
+            string body = result.Describe();
+            if (result.FreeSpinsAwarded > 0)
+            {
+                body += "\nBONUS: " + result.FreeSpinsAwarded + " FREE SPINS!";
+                audioManager.Play(SoundCue.FreeSpin);
+            }
+
             if (result.IsWin)
             {
                 audioManager.Play(result.IsJackpot ? SoundCue.Jackpot : SoundCue.Win);
-                popupTitle.text = result.IsJackpot ? "JACKPOT!!!" : "YOU WIN!";
-                string body = result.Describe();
-                if (result.FreeSpinsAwarded > 0)
-                {
-                    body += "\nBONUS: " + result.FreeSpinsAwarded + " FREE SPINS!";
-                    audioManager.Play(SoundCue.FreeSpin);
-                }
-                popupBody.text = body;
-                popupRoot.SetActive(true);
+                StartCoroutine(HighlightPayline());
             }
             else
             {
                 winText.text = "WIN  0";
-                popupTitle.text = "TRY AGAIN";
-                popupBody.text = result.Describe();
-                popupRoot.SetActive(true);
             }
+
+            // Auto-play skips the blocking popup so spins can run back-to-back.
+            if (autoSpinEnabled)
+            {
+                autoSpinTimer = 0.55f;
+                return;
+            }
+
+            popupTitle.text = result.IsJackpot ? "JACKPOT!!!" : (result.IsWin ? "YOU WIN!" : "TRY AGAIN");
+            popupBody.text = body;
+            popupRoot.SetActive(true);
+        }
+
+        /// <summary>Pulses the three payline symbols gold after a win.</summary>
+        private IEnumerator HighlightPayline()
+        {
+            Color gold = new Color(1f, 0.85f, 0.25f);
+            float elapsed = 0f;
+            while (elapsed < 0.9f)
+            {
+                elapsed += Time.deltaTime;
+                float wave = Mathf.Sin(Mathf.Clamp01(elapsed / 0.9f) * Mathf.PI * 2f) * 0.5f + 0.5f;
+                Color tint = Color.Lerp(Color.white, gold, wave * 0.85f);
+                for (int i = 0; i < reels.Length; i++)
+                {
+                    Image image = reels[i].CentreImage;
+                    if (image != null) image.color = tint;
+                }
+                yield return null;
+            }
+            for (int i = 0; i < reels.Length; i++)
+            {
+                Image image = reels[i].CentreImage;
+                if (image != null) image.color = Color.white;
+            }
+        }
+
+        private void ToggleAutoSpin()
+        {
+            audioManager.Play(SoundCue.Button);
+            autoSpinEnabled = !autoSpinEnabled;
+            autoSpinTimer = autoSpinEnabled && controller.CanSpin ? 0.35f : -1f;
+            if (autoButtonLabel != null) autoButtonLabel.text = "AUTO: " + (autoSpinEnabled ? "ON" : "OFF");
+            Image image = autoButton.GetComponent<Image>();
+            image.color = autoSpinEnabled
+                ? new Color(0.12f, 0.55f, 0.30f, 0.95f)
+                : new Color(0.28f, 0.19f, 0.62f, 0.92f);
+            if (popupRoot != null) popupRoot.SetActive(false);
+        }
+
+        private void ToggleSound()
+        {
+            soundMuted = !soundMuted;
+            audioManager.Muted = soundMuted;
+            if (!soundMuted) audioManager.Play(SoundCue.Button);
+            if (soundButtonLabel != null) soundButtonLabel.text = "SOUND: " + (soundMuted ? "OFF" : "ON");
+        }
+
+        private void ToggleHelp()
+        {
+            audioManager.Play(SoundCue.Button);
+            helpRoot.SetActive(!helpRoot.activeSelf);
+        }
+
+        /// <summary>Refreshes the session stats panel and stores the best win permanently.</summary>
+        private void RefreshStats()
+        {
+            if (controller == null || statsText == null) return;
+
+            int savedBest = PlayerPrefs.GetInt("Lucky7.BestWin", 0);
+            if (controller.BiggestWin > savedBest)
+            {
+                PlayerPrefs.SetInt("Lucky7.BestWin", controller.BiggestWin);
+                PlayerPrefs.Save();
+            }
+            int best = Mathf.Max(savedBest, controller.BiggestWin);
+
+            statsText.text = "SESSION STATS\n\n" +
+                             "SPINS      " + controller.SpinsPlayed + "\n" +
+                             "WAGERED    " + controller.TotalWagered + "\n" +
+                             "WON        " + controller.TotalWon + "\n" +
+                             "BEST WIN   " + best + "\n" +
+                             "JACKPOTS   " + controller.JackpotsWon;
         }
 
         private void ShowMessage(string message)
@@ -375,6 +531,28 @@ namespace LuckySeven.Slot
 
         private void UpdateEffects(float deltaTime)
         {
+            // Auto-play schedules the next spin shortly after the previous one finishes.
+            if (autoSpinTimer > 0f)
+            {
+                autoSpinTimer -= deltaTime;
+                if (autoSpinTimer <= 0f)
+                {
+                    autoSpinTimer = -1f;
+                    if (controller.CanSpin)
+                    {
+                        controller.Spin();
+                    }
+                    else
+                    {
+                        autoSpinEnabled = false;
+                        if (autoButtonLabel != null) autoButtonLabel.text = "AUTO: OFF";
+                        Image image = autoButton.GetComponent<Image>();
+                        image.color = new Color(0.28f, 0.19f, 0.62f, 0.92f);
+                        ShowMessage("Auto-spin stopped - not enough credits.");
+                    }
+                }
+            }
+
             // Motion-blur strip fades in while the reels are fast, out as they settle.
             float fastest = 0f;
             for (int i = 0; i < reels.Length; i++) fastest = Mathf.Max(fastest, reels[i].Speed);
@@ -525,6 +703,16 @@ namespace LuckySeven.Slot
                 return Resources.GetBuiltinResource<Font>("Arial.ttf");
             }
             catch (Exception) { return null; }
+        }
+
+        /// <summary>A simple labelled purple button used by the extra feature controls.</summary>
+        private static Button CreateLabeledButton(string name, Transform parent, string label, Vector2 size, Vector2 position)
+        {
+            Button button = CreateButton(name, parent, null, size, position);
+            Image image = button.GetComponent<Image>();
+            image.color = new Color(0.28f, 0.19f, 0.62f, 0.92f);
+            CreateText("Label", button.transform, label, 24, Color.white, size, Vector2.zero, TextAnchor.MiddleCenter);
+            return button;
         }
 
         private static Button CreateButton(string name, Transform parent, Sprite sprite, Vector2 size, Vector2 position)

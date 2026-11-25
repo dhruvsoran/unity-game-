@@ -25,6 +25,7 @@ namespace LuckySeven.Slot
         private AudioSource source;
 
         [Range(0f, 1f)] public float Volume = 0.35f;
+        public bool Muted { get; set; }
 
         public void Initialize(GameObject host)
         {
@@ -43,7 +44,7 @@ namespace LuckySeven.Slot
 
         public void Play(SoundCue cue)
         {
-            if (source == null || !clips.ContainsKey(cue)) return;
+            if (Muted || source == null || !clips.ContainsKey(cue)) return;
             source.PlayOneShot(clips[cue], Volume);
         }
 

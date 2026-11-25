@@ -36,6 +36,9 @@ namespace LuckySeven.Slot
         public float Speed { get { return speed; } }
         public SymbolType CentreSymbol { get { return strip == null ? SymbolType.Cherry : strip.At(Mathf.RoundToInt(position)); } }
 
+        /// <summary>The payline symbol image, used by the view's win highlight.</summary>
+        public Image CentreImage { get { return symbolImages == null ? null : symbolImages[1]; } }
+
         /// <summary>Raised once the reel has fully settled on its result.</summary>
         public event Action Stopped;
 

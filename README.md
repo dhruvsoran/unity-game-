@@ -16,14 +16,20 @@ The project is self-contained: the entire UI is created at runtime, so opening t
 | Randomized outcomes | Weighted `System.Random` RNG (seeded per session); each reel is an independent draw. |
 | Winning combinations & payouts | Configurable paytable in `SlotMachineSettings`, progressive jackpot, credit/bet bookkeeping. |
 | Bonus features | Progressive jackpot, free spins for three bells, two-cherry consolation, procedural sound effects, keyboard shortcuts. |
+| Extra features | Auto-spin mode, in-game paytable/help panel, session statistics with persistent best win, winning-symbol celebration highlight, sound mute toggle. |
 | Clean structure | OOP separation into Core / Game / UI / Audio / Bootstrap namespaces with documented code. |
 
 ## 🕹 Controls
 
 - **SPIN** button or **SPACE** — spin the reels (costs the current bet, unless a free spin is available)
 - **BET** button or **B** — cycle bet amounts: 10 → 50 → 100 credits
-- **ESC** — close the result popup
+- **A** or **AUTO** button — toggle continuous auto-spin (spins run back-to-back and stop automatically if credits run out)
+- **M** or **SOUND** button — mute/unmute the procedural sound effects
+- **H** or **PAYTABLE** button — open the in-game help/paytable panel
+- **ESC** — close the help panel, then the result popup
 - **YES / NO** on the popup — spin again or close
+
+The left-hand panel shows live session stats (spins, wagered, won, best win, jackpots). Your **best win is saved permanently** with `PlayerPrefs` in Unity and `localStorage` in the browser build.
 
 ## 💰 Paytable (at bet 10)
 
@@ -78,6 +84,14 @@ A ready-to-play browser build is included at `Build/WebGL/index.html` so the gam
 - Or serve the folder locally, e.g. `cd Build/WebGL && python -m http.server 8000`, then visit `http://localhost:8000`.
 
 The browser build mirrors the Unity rules, weights, payouts and animation timing exactly. It is a hand-authored HTML5 preview; run the Unity WebGL build from the menu above for the official Unity output.
+
+## 🎁 Extra Features
+
+- **Auto-spin** — enable once and the machine keeps spinning every ~0.5 s after the previous result. The blocking win popup is suppressed in auto mode, and auto-play stops itself when credits are too low.
+- **Paytable / Help overlay** — explains the rules, payouts and every keyboard shortcut without leaving the game.
+- **Session statistics** — spins played, total wagered, total won, best win and jackpots won; best win persists between sessions.
+- **Win celebration** — the three payline symbols pulse gold, and the win sound/arpeggio plays (bigger arpeggio for a jackpot).
+- **Sound toggle** — mute the procedural audio bank at any time.
 
 ## 🧠 Thought Process / Approach
 

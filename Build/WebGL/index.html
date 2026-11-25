@@ -67,6 +67,23 @@
   #popupTitle { top: 420px; font-size: 60px; }
   #popupBody  { top: 552px; font-size: 30px; }
   #hint { bottom: 8px; left: 12px; position: absolute; font-size: 13px; color: #9aa3cc; }
+  .feature-btn {
+    cursor: pointer; border: 2px solid rgba(150,170,255,.5); border-radius: 8px;
+    background: rgba(72,49,158,.94); color: #fff; font-size: 24px;
+    font-weight: bold; text-shadow: 1px 1px 2px #000;
+    transition: filter .12s ease;
+  }
+  .feature-btn:hover { filter: brightness(1.15); }
+  .feature-btn.active { background: rgba(28,140,76,.96); }
+  #helpDim {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    background: rgba(0,0,0,.72); display: none;
+  }
+  @keyframes winPulse {
+    0%, 100% { filter: none; }
+    50% { filter: brightness(1.45) drop-shadow(0 0 14px #ffd23f); }
+  }
+  .symbol.win-glow { animation: winPulse .45s ease-in-out 2; }
 </style>
 </head>
 <body>
@@ -94,7 +111,29 @@
   <button class="ui arrow bet-normal" id="betBtn" style="left:1685px;top:430px;width:170px;height:170px;"></button>
   <div class="txt ui" style="left:1680px;top:790px;font-size:30px;">SPIN</div>
   <div class="txt ui" style="left:1685px;top:325px;font-size:26px;">BET</div>
-  <div class="txt ui" style="left:1680px;top:840px;font-size:20px;color:#c0c8f0;">SPACE = SPIN &nbsp; B = BET</div>
+  <div class="txt ui" style="left:1680px;top:840px;font-size:18px;color:#c0c8f0;">SPACE SPIN &nbsp; B BET &nbsp; A AUTO &nbsp; M SOUND</div>
+
+  <div class="ui" style="left:170px;top:600px;width:320px;height:360px;background:rgba(10,7,40,.72);border:2px solid rgba(120,140,220,.45);"></div>
+  <div class="txt ui" id="stats" style="left:170px;top:600px;font-size:24px;color:#bfd9ff;text-align:left;white-space:pre-line;">SESSION STATS</div>
+  <button class="ui feature-btn" id="autoBtn" style="left:170px;top:150px;width:300px;height:70px;">AUTO: OFF</button>
+  <button class="ui feature-btn" id="soundBtn" style="left:170px;top:240px;width:300px;height:70px;">SOUND: ON</button>
+  <button class="ui feature-btn" id="helpBtn" style="left:170px;top:330px;width:300px;height:70px;">PAYTABLE (H)</button>
+
+  <div id="helpDim">
+    <img class="ui" src="assets/popup.png" style="left:960px;top:540px;width:1000px;height:620px;" />
+    <div class="txt gold ui" style="left:960px;top:320px;font-size:44px;">HOW TO PLAY / PAYTABLE</div>
+    <div class="txt ui" style="left:960px;top:520px;font-size:26px;white-space:pre-line;text-align:center;line-height:1.5;">CENTRE ROW IS THE PAYLINE
+
+7 - 7 - 7 ........ PROGRESSIVE JACKPOT
+BELL x3 .......... 20x BET + 2 FREE SPINS
+BAR x3 ........... 10x BET
+CHERRY x3 ........ 5x BET
+TWO CHERRIES ..... 2x BET
+
+BETS: 10 / 50 / 100 &nbsp;&nbsp; START: 1000 CREDITS
+SPACE SPIN &nbsp; B BET &nbsp; A AUTO &nbsp; M SOUND</div>
+    <button class="ui feature-btn" id="closeHelpBtn" style="left:960px;top:770px;width:300px;height:80px;">CLOSE (ESC)</button>
+  </div>
 
   <div id="popupDim">
     <img class="ui" id="popupBox" src="assets/popup.png" style="left:960px;top:540px;" />
