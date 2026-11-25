@@ -1,0 +1,110 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Lucky 7 Slot - WebGL Preview</title>
+<style>
+  html, body {
+    margin: 0; padding: 0; width: 100%; height: 100%;
+    background: #05030f; overflow: hidden;
+    font-family: "Trebuchet MS", Arial, sans-serif;
+    color: #fff;
+  }
+  #stage {
+    position: absolute; left: 50%; top: 50%;
+    width: 1920px; height: 1080px;
+    transform-origin: center center;
+    transform: translate(-50%, -50%) scale(1);
+  }
+  .ui { position: absolute; transform: translate(-50%, -50%); user-select: none; }
+  img.ui { pointer-events: none; }
+  .txt {
+    font-weight: bold; letter-spacing: 1px; white-space: nowrap;
+    text-shadow: 2px 2px 0 rgba(0,0,0,.75), 0 0 12px rgba(0,0,0,.6);
+    pointer-events: none;
+  }
+  .gold { color: #ffd94a; }
+  .green { color: #a8ffc4; }
+  .cyan { color: #d8e8ff; }
+  .reel {
+    position: absolute; overflow: hidden; transform: translate(-50%, -50%);
+    background: #dde7e8; border-radius: 1px;
+    box-shadow: inset 0 0 0 2px rgba(90,110,170,.7);
+  }
+  .symbol {
+    position: absolute; left: 50%; top: 50%;
+    width: 96px; height: 96px; margin-left: -48px; margin-top: -48px;
+    background-repeat: no-repeat; background-size: 96px 96px;
+    image-rendering: auto;
+  }
+  .arrow {
+    cursor: pointer; border: none; padding: 0; background-color: transparent;
+    background-image: url("assets/slot_machine_buttons-02.png");
+    background-size: 100% 400%; background-repeat: no-repeat;
+    transition: filter .12s ease, transform .08s ease;
+  }
+  .arrow:hover { filter: brightness(1.15); }
+  .arrow:active { transform: translate(-50%, -50%) scale(.94); }
+  .arrow.spin-normal  { background-position: 0 33.333%; }
+  .arrow.spin-off     { background-position: 0 100%; filter: grayscale(.7); cursor: default; }
+  .arrow.bet-normal   { transform: translate(-50%, -50%) scaleX(-1); background-position: 0 0; }
+  .arrow.bet-normal:hover { transform: translate(-50%, -50%) scaleX(-1) brightness(1.15); }
+  .arrow.bet-off      { background-position: 0 100%; filter: grayscale(.7); cursor: default; transform: translate(-50%, -50%) scaleX(-1); }
+  .yesno {
+    position: absolute; transform: translate(-50%, -50%); cursor: pointer;
+    background-image: url("assets/Yes_No_Btn.png");
+    background-size: 990px 690px; background-repeat: no-repeat;
+    border: none; padding: 0;
+    transition: filter .12s ease;
+  }
+  .yesno:hover { filter: brightness(1.12); }
+  #popupDim {
+    position: absolute; left: 0; top: 0; width: 1920px; height: 1080px;
+    background: rgba(0,0,0,.68); display: none;
+  }
+  #popupBox { width: 865px; height: 437px; }
+  #popupTitle { top: 420px; font-size: 60px; }
+  #popupBody  { top: 552px; font-size: 30px; }
+  #hint { bottom: 8px; left: 12px; position: absolute; font-size: 13px; color: #9aa3cc; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <img class="ui" src="assets/bg_gradient.png" style="left:960px;top:540px;width:1920px;height:1080px;" />
+  <div class="ui" style="left:960px;top:540px;width:1920px;height:1080px;background:rgba(8,5,30,.18);"></div>
+
+  <div id="reels"></div>
+
+  <img class="ui" src="assets/slot-machine4.png" style="left:960px;top:565px;width:1224px;height:936px;" />
+  <img class="ui" id="lever" src="assets/slot-machine2.png" style="left:960px;top:565px;width:1224px;height:936px;transform-origin:88.2% 89.7%;" />
+  <img class="ui" id="blur" src="assets/slot-machine5.png" style="left:960px;top:565px;width:1224px;height:936px;opacity:0;" />
+
+  <img class="ui" src="assets/slot_machine_Middle_box.png" style="left:960px;top:960px;width:600px;height:250px;" />
+  <div class="txt gold ui" id="betInfo" style="left:960px;top:915px;font-size:38px;">BET 10</div>
+  <div class="txt green ui" id="winInfo" style="left:960px;top:970px;font-size:30px;">WIN 0</div>
+
+  <div class="txt gold ui" id="credits" style="left:310px;top:60px;font-size:40px;">CREDITS 1000</div>
+  <div class="txt gold ui" id="jackpot" style="left:1610px;top:60px;font-size:40px;text-align:right;">JACKPOT 1000</div>
+  <div class="txt green ui" id="freeSpins" style="left:310px;top:110px;font-size:28px;"></div>
+  <div class="txt cyan ui" style="left:960px;top:58px;font-size:30px;">LUCKY 7 &nbsp; SLOT</div>
+  <div class="txt ui" id="status" style="left:960px;top:1045px;font-size:30px;color:#ffefcc;opacity:0;"></div>
+
+  <button class="ui arrow spin-normal" id="spinBtn" style="left:1680px;top:660px;width:190px;height:190px;"></button>
+  <button class="ui arrow bet-normal" id="betBtn" style="left:1685px;top:430px;width:170px;height:170px;"></button>
+  <div class="txt ui" style="left:1680px;top:790px;font-size:30px;">SPIN</div>
+  <div class="txt ui" style="left:1685px;top:325px;font-size:26px;">BET</div>
+  <div class="txt ui" style="left:1680px;top:840px;font-size:20px;color:#c0c8f0;">SPACE = SPIN &nbsp; B = BET</div>
+
+  <div id="popupDim">
+    <img class="ui" id="popupBox" src="assets/popup.png" style="left:960px;top:540px;" />
+    <div class="txt gold ui" id="popupTitle" style="left:960px;font-size:60px;">YOU WIN!</div>
+    <div class="txt ui" id="popupBody" style="left:960px;font-size:30px;"></div>
+    <button class="yesno ui" id="yesBtn" style="left:770px;top:670px;width:370px;height:140px;background-position:-70px -70px;"></button>
+    <button class="yesno ui" id="noBtn" style="left:1150px;top:670px;width:370px;height:140px;background-position:-550px -70px;"></button>
+  </div>
+  <div id="hint">Lucky 7 Slot &mdash; browser preview of the Unity project</div>
+</div>
+<script src="game.js"></script>
+</body>
+</html>
